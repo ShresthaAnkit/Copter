@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/my_copter.dart';
-import '../components/cloud.dart';
+import '../components/background/change_background.dart';
+import '../size_config.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -11,28 +12,49 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
-  static double _heliYaxis = 0;
+  static double _heliYaxis = SizeConfig.screenHeight / 2.2;
   double _time = 0;
   double _height = 0;
-  double _initialHeight = _heliYaxis;
+  double _initialHeight;
   bool _gameHasStarted = false;
   bool _throttlePressed = false;
+
   static const _GRAVITY = 9.8;
-  static const _VELOCITY = 1.5;
+  static const _VELOCITY = 20;
+  static const _TIMER_INCREASE = 0.25;
 
-  double _cloudXaxis = -1.9;
-  double _cloudSpeed = 0.02;
-  double _cloudYaxis = 0;
+  static int _fireBallSpeedFactor = 80;
+  static int _scoreSpeedFactor = 90;
 
-  double _scoreXaxis = -1.9;
-  double _scoreSpeed = 0.02;
-  double _scoreYaxis = 0;
+  double _fireballXaxis = SizeConfig.screenWidth * 1.2;
+  double _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
+  double _fireballYaxis =
+      Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+
+  double _scoreXaxis = SizeConfig.screenWidth * 1.8;
+  double _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
+  double _scoreYaxis = Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+
+  double _heliTopPos;
+  double _heliBottomPos;
+  double _heliFrontPos;
+  double _heliBackPos;
+
+  double _fireballTopPos;
+  double _fireballBottomPos;
+  double _fireballFrontPos;
+  double _fireballBackPos;
+
+  double _scoreTopPos;
+  double _scoreBottomPos;
+  double _scoreFrontPos;
+  double _scoreBackPos;
 
   double _score = 0;
   double _gameTime = 0;
-  double _difficultyCalculator = 0;
 
   bool _imageState = true;
+  bool _visible = true;
 
   @override
   void initState() {
@@ -56,7 +78,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void throttleUp() {
     _throttlePressed = true;
-    Timer.periodic(Duration(milliseconds: 60), (timer) {
+    Timer.periodic(Duration(milliseconds: 30), (timer) {
       jumpUp();
       if (!_throttlePressed) {
         timer.cancel();
@@ -66,63 +88,57 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void startGame() {
     _gameHasStarted = true;
-    _difficultyCalculator = 0;
     _score = 0;
     Timer.periodic(Duration(milliseconds: 30), (timer) {
-      _difficultyCalculator += 0.025;
-      _gameTime += 0.025;
-      _time += 0.02;
-      _score += 0.025;
+      _gameTime += 0.03;
+      _time += _TIMER_INCREASE;
+      _score += 0.03;
       _height = (-(_GRAVITY / 2) * _time * _time + _VELOCITY * _time);
       setState(() {
         _heliYaxis = _initialHeight - _height;
       });
 
       setState(() {
-        if (_cloudXaxis < -1.8) {
-          Random random = Random();
-          Random randomAxis = Random();
-          if (randomAxis.nextBool()) {
-            _cloudYaxis = random.nextDouble();
-          } else {
-            _cloudYaxis = -random.nextDouble();
-          }
-          _cloudXaxis += 3;
+        if (_fireballXaxis < -50) {
+          // Check When fireball out of screen
+          _fireballYaxis =
+              Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+          _fireballXaxis += SizeConfig.screenWidth;
         } else {
-          _cloudXaxis -= _cloudSpeed;
+          _fireballXaxis -= _fireballSpeed;
         }
-        if (_scoreXaxis < -1.8) {
-          Random random = Random();
-          Random randomAxis = Random();
-          if (randomAxis.nextBool()) {
-            _scoreYaxis = random.nextDouble();
-          } else {
-            _scoreYaxis = -random.nextDouble();
-          }
-          _scoreXaxis += 3;
+
+        if (_scoreXaxis < -50) {
+          // Check When score out of screen
+          _visible = true;
+          _scoreYaxis = Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+          _scoreXaxis +=
+              SizeConfig.screenWidth * 1.6; // place the score farther back
         } else {
           _scoreXaxis -= _scoreSpeed;
         }
-        if (double.parse(_score.toStringAsFixed(2)) % 5 == 0 && _score != 0) {
-          _cloudSpeed += 0.01;
-          _scoreSpeed += 0.005;
+
+        if (double.parse(_score.toStringAsFixed(2)) % 10 == 0 && _score != 0) {
+          _fireBallSpeedFactor -= 2;
+          _scoreSpeedFactor -= 2;
+          _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
           _imageState = !_imageState;
         }
       });
+      // Calculate Helicopter Position
+      reformHeliPos();
 
-      if (_scoreYaxis.toStringAsFixed(1) == _heliYaxis.toStringAsFixed(1) &&
-          _scoreXaxis.round() == 0) {
+      if (checkScoreCollision()) {
         _score++;
-        _scoreXaxis += 2;
+        _visible = false;
       }
 
-      if (_cloudYaxis.toStringAsFixed(1) == _heliYaxis.toStringAsFixed(1) &&
-          _cloudXaxis.round() == 0) {
+      if (checkObstacleCollision()) {
         timer.cancel();
         _gameHasStarted = false;
       }
 
-      if (_heliYaxis > 1 || _heliYaxis < -1) {
+      if (_heliYaxis < 0 || _heliYaxis > (SizeConfig.screenHeight - 60)) {
         timer.cancel();
         _gameHasStarted = false;
       }
@@ -130,6 +146,47 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         endGame();
       }
     });
+  }
+
+  bool checkScoreCollision() {
+    reformScorePos();
+    if (_heliTopPos < _scoreBottomPos &&
+        _heliBottomPos > _scoreTopPos &&
+        _heliFrontPos > _scoreFrontPos &&
+        _heliBackPos < _scoreBackPos) return true;
+
+    return false;
+  }
+
+  bool checkObstacleCollision() {
+    reformFireballPos();
+    if (_heliTopPos < _fireballBottomPos &&
+        _heliBottomPos > _fireballTopPos &&
+        _heliFrontPos > _fireballFrontPos &&
+        _heliBackPos < _fireballBackPos) return true;
+
+    return false;
+  }
+
+  void reformHeliPos() {
+    _heliTopPos = _heliYaxis;
+    _heliBottomPos = _heliYaxis + 35;
+    _heliFrontPos = SizeConfig.screenWidth / 1.8;
+    _heliBackPos = SizeConfig.screenWidth / 2.2;
+  }
+
+  void reformFireballPos() {
+    _fireballTopPos = _fireballYaxis + 25;
+    _fireballBottomPos = _fireballYaxis + 50;
+    _fireballFrontPos = _fireballXaxis + 15;
+    _fireballBackPos = _fireballXaxis + 70;
+  }
+
+  void reformScorePos() {
+    _scoreTopPos = _scoreYaxis;
+    _scoreBottomPos = _scoreYaxis + 20;
+    _scoreFrontPos = _scoreXaxis;
+    _scoreBackPos = _scoreXaxis + 20;
   }
 
   Widget build(context) {
@@ -141,40 +198,28 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               child: GestureDetector(
                 child: Stack(
                   children: [
-                    AnimatedCrossFade(
-                      crossFadeState: _imageState
-                          ? CrossFadeState.showFirst
-                          : CrossFadeState.showSecond,
-                      duration: Duration(milliseconds: 800),
-                      sizeCurve: Curves.ease,
-                      firstChild: Image.asset(
-                        'assets/images/background1.png',
-                        fit: BoxFit.cover,
-                        height: MediaQuery.of(context).size.height,
-                        width: MediaQuery.of(context).size.width,
-                      ),
-                      secondChild: Image.asset(
-                        'assets/images/background2.jpg',
-                        fit: BoxFit.cover,
-                        height: MediaQuery.of(context).size.height,
-                        width: MediaQuery.of(context).size.width,
-                      ),
-                    ),
-                    AnimatedContainer(
-                      alignment: Alignment(0, _heliYaxis),
+                    ChangeBackground(imageState: _imageState),
+                    AnimatedPositioned(
+                      top: _heliYaxis,
+                      left: (SizeConfig.screenWidth) / 2.2,
                       duration: Duration(milliseconds: 0),
                       child: MyCopter(),
                     ),
-                    AnimatedContainer(
+                    AnimatedPositioned(
                       duration: Duration(milliseconds: 0),
-                      alignment: Alignment(_cloudXaxis, _cloudYaxis),
+                      top: _fireballYaxis,
+                      left: _fireballXaxis,
                       child:
                           Image.asset("assets/images/fireball.png", scale: 4),
                     ),
-                    AnimatedContainer(
+                    AnimatedPositioned(
                       duration: Duration(milliseconds: 0),
-                      alignment: Alignment(_scoreXaxis, _scoreYaxis),
-                      child: Image.asset("assets/images/star.png", scale: 7),
+                      top: _scoreYaxis,
+                      left: _scoreXaxis,
+                      child: Opacity(
+                          opacity: (_visible) ? 1 : 0,
+                          child:
+                              Image.asset("assets/images/star.png", scale: 7)),
                     ),
                     Container(
                       alignment: Alignment(-0.9, -0.9),
@@ -216,59 +261,21 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   void endGame() {
-    _heliYaxis = 0;
+    _fireBallSpeedFactor = 80;
+    _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
+    _scoreSpeedFactor = 90;
+    _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
+
+    _fireballXaxis = SizeConfig.screenWidth + 100;
+    _scoreXaxis = SizeConfig.screenWidth * 1.8;
+    _heliYaxis = SizeConfig.screenHeight / 2.2;
+
     _time = 0;
     _height = 0;
     _initialHeight = _heliYaxis;
     _gameHasStarted = false;
     _throttlePressed = false;
-    _cloudXaxis = -1.9;
-    _cloudYaxis = 0;
-    _cloudSpeed = 0.02;
-    _scoreXaxis = -1.9;
-    _scoreYaxis = 0;
-    _scoreSpeed = 0.02;
+
     _gameTime = 0;
   }
-
-  // Widget buildCloud() {
-  //   return Wrap(
-  //     children: [
-  //       Column(
-  //         children: [
-  //           Cloud(),
-  //           Cloud(),
-  //         ],
-  //       ),
-  //       Column(
-  //         children: [
-  //           Cloud(),
-  //           Cloud(),
-  //           Cloud(),
-  //         ],
-  //       ),
-  //       Column(
-  //         children: [
-  //           Cloud(),
-  //           Cloud(),
-  //           Cloud(),
-  //           Cloud(),
-  //         ],
-  //       ),
-  //       Column(
-  //         children: [
-  //           Cloud(),
-  //           Cloud(),
-  //           Cloud(),
-  //         ],
-  //       ),
-  //       Column(
-  //         children: [
-  //           Cloud(),
-  //           Cloud(),
-  //         ],
-  //       ),
-  //     ],
-  //   );
-  // }
 }
