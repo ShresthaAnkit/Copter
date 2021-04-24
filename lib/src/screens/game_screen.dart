@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/my_copter.dart';
+import '../components/fireball.dart';
 import '../components/background/change_background.dart';
 import '../size_config.dart';
 import 'dart:async';
@@ -26,29 +27,35 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   static int _fireBallSpeedFactor = 80;
   static int _scoreSpeedFactor = 90;
 
-  double _fireballXaxis = SizeConfig.screenWidth * 1.2;
+  static var _fireballXaxis = [
+    SizeConfig.screenWidth * 1.2,
+    SizeConfig.screenWidth * 1.2
+  ];
   double _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
-  double _fireballYaxis =
-      Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+  static var _fireballYaxis = [
+    Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
+    Random().nextDouble() * (SizeConfig.screenHeight * 0.8)
+  ];
 
-  double _scoreXaxis = SizeConfig.screenWidth * 1.8;
+  static double _scoreXaxis = SizeConfig.screenWidth * 1.8;
   double _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
-  double _scoreYaxis = Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+  static double _scoreYaxis =
+      Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
 
   double _heliTopPos;
   double _heliBottomPos;
   double _heliFrontPos;
   double _heliBackPos;
 
-  double _fireballTopPos;
-  double _fireballBottomPos;
-  double _fireballFrontPos;
-  double _fireballBackPos;
+  var _fireballTopPos = [_fireballYaxis[0] + 25, _fireballYaxis[1] + 25];
+  var _fireballBottomPos = [_fireballYaxis[0] + 50, _fireballYaxis[1] + 50];
+  var _fireballFrontPos = [_fireballXaxis[0] + 15, _fireballXaxis[1] + 15];
+  var _fireballBackPos = [_fireballXaxis[0] + 70, _fireballXaxis[1] + 70];
 
-  double _scoreTopPos;
-  double _scoreBottomPos;
-  double _scoreFrontPos;
-  double _scoreBackPos;
+  double _scoreTopPos = _scoreYaxis;
+  double _scoreBottomPos = _scoreYaxis + 20;
+  double _scoreFrontPos = _scoreXaxis;
+  double _scoreBackPos = _scoreXaxis + 20;
 
   double _score = 0;
   double _gameTime = 0;
@@ -99,24 +106,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       });
 
       setState(() {
-        if (_fireballXaxis < -50) {
-          // Check When fireball out of screen
-          _fireballYaxis =
-              Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
-          _fireballXaxis += SizeConfig.screenWidth;
-        } else {
-          _fireballXaxis -= _fireballSpeed;
-        }
+        changeFireballPos(0);
+        changeFireballPos(1);
 
-        if (_scoreXaxis < -50) {
-          // Check When score out of screen
-          _visible = true;
-          _scoreYaxis = Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
-          _scoreXaxis +=
-              SizeConfig.screenWidth * 1.6; // place the score farther back
-        } else {
-          _scoreXaxis -= _scoreSpeed;
-        }
+        changeScorePos();
 
         if (double.parse(_score.toStringAsFixed(2)) % 10 == 0 && _score != 0) {
           _fireBallSpeedFactor -= 2;
@@ -133,7 +126,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         _visible = false;
       }
 
-      if (checkObstacleCollision()) {
+      if (checkObstacleCollision(0) || checkObstacleCollision(1)) {
         timer.cancel();
         _gameHasStarted = false;
       }
@@ -148,6 +141,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     });
   }
 
+  void changeScorePos() {
+    if (_scoreXaxis < -50) {
+      // Check When score out of screen
+      _visible = true;
+      _scoreYaxis = Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+      _scoreXaxis +=
+          SizeConfig.screenWidth * 1.6; // place the score farther back
+    } else {
+      _scoreXaxis -= _scoreSpeed;
+    }
+  }
+
+  void changeFireballPos(int num) {
+    if (_fireballXaxis[num] < -50) {
+      // Check When fireball out of screen
+      _fireballYaxis[num] =
+          Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
+      _fireballXaxis[num] += SizeConfig.screenWidth;
+    } else {
+      _fireballXaxis[num] -= _fireballSpeed;
+    }
+  }
+
   bool checkScoreCollision() {
     reformScorePos();
     if (_heliTopPos < _scoreBottomPos &&
@@ -158,12 +174,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return false;
   }
 
-  bool checkObstacleCollision() {
-    reformFireballPos();
-    if (_heliTopPos < _fireballBottomPos &&
-        _heliBottomPos > _fireballTopPos &&
-        _heliFrontPos > _fireballFrontPos &&
-        _heliBackPos < _fireballBackPos) return true;
+  bool checkObstacleCollision(int num) {
+    reformFireballPos(num);
+    if (_heliTopPos < _fireballBottomPos[num] &&
+        _heliBottomPos > _fireballTopPos[num] &&
+        _heliFrontPos > _fireballFrontPos[num] &&
+        _heliBackPos < _fireballBackPos[num]) return true;
 
     return false;
   }
@@ -175,18 +191,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _heliBackPos = SizeConfig.screenWidth / 2.2;
   }
 
-  void reformFireballPos() {
-    _fireballTopPos = _fireballYaxis + 25;
-    _fireballBottomPos = _fireballYaxis + 50;
-    _fireballFrontPos = _fireballXaxis + 15;
-    _fireballBackPos = _fireballXaxis + 70;
+  void reformFireballPos(int num) {
+    _fireballTopPos[num] = _fireballYaxis[num] + 25;
+    _fireballBottomPos[num] = _fireballYaxis[num] + 50;
+    _fireballFrontPos[num] = _fireballXaxis[num] + 15;
+    _fireballBackPos[num] = _fireballXaxis[num] + 70;
   }
 
   void reformScorePos() {
     _scoreTopPos = _scoreYaxis;
-    _scoreBottomPos = _scoreYaxis + 20;
+    _scoreBottomPos = _scoreYaxis + 30;
     _scoreFrontPos = _scoreXaxis;
-    _scoreBackPos = _scoreXaxis + 20;
+    _scoreBackPos = _scoreXaxis + 30;
   }
 
   Widget build(context) {
@@ -205,12 +221,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       duration: Duration(milliseconds: 0),
                       child: MyCopter(),
                     ),
-                    AnimatedPositioned(
-                      duration: Duration(milliseconds: 0),
-                      top: _fireballYaxis,
-                      left: _fireballXaxis,
-                      child:
-                          Image.asset("assets/images/fireball.png", scale: 4),
+                    Fireball(
+                      fireballYaxis: _fireballYaxis[0],
+                      fireballXaxis: _fireballXaxis[0],
+                    ),
+                    Fireball(
+                      fireballYaxis: _fireballYaxis[1],
+                      fireballXaxis: _fireballXaxis[1],
                     ),
                     AnimatedPositioned(
                       duration: Duration(milliseconds: 0),
@@ -266,7 +283,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _scoreSpeedFactor = 90;
     _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
 
-    _fireballXaxis = SizeConfig.screenWidth + 100;
+    _fireballXaxis[0] = SizeConfig.screenWidth + 100;
+    _fireballXaxis[1] = SizeConfig.screenWidth + 300;
     _scoreXaxis = SizeConfig.screenWidth * 1.8;
     _heliYaxis = SizeConfig.screenHeight / 2.2;
 
