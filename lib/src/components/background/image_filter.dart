@@ -14,7 +14,7 @@ class ImageFilter extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColorFiltered(
       colorFilter: ColorFilter.matrix(
-          ColorFilterGenerator.brightnessAdjustMatrix(value: -0.1)),
+          ColorFilterGenerator.brightnessAdjustMatrix(value: -0.2)),
       child: Image.asset(
         '$url',
         fit: BoxFit.cover,

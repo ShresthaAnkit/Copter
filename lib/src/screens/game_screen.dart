@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/my_copter.dart';
 import '../components/fireball.dart';
-import '../components/background/change_background.dart';
+import '../components/background/background_image.dart';
 import '../size_config.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class GameScreen extends StatefulWidget {
   @override
@@ -29,12 +30,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   static var _fireballXaxis = [
     SizeConfig.screenWidth * 1.2,
-    SizeConfig.screenWidth * 1.2
+    SizeConfig.screenWidth * 1.2,
+    SizeConfig.screenWidth * 1.2,
+    SizeConfig.screenWidth * 1.2,
   ];
   double _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
   static var _fireballYaxis = [
     Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
-    Random().nextDouble() * (SizeConfig.screenHeight * 0.8)
+    Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
+    Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
+    Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
   ];
 
   static double _scoreXaxis = SizeConfig.screenWidth * 1.8;
@@ -47,10 +52,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   double _heliFrontPos;
   double _heliBackPos;
 
-  var _fireballTopPos = [_fireballYaxis[0] + 25, _fireballYaxis[1] + 25];
-  var _fireballBottomPos = [_fireballYaxis[0] + 50, _fireballYaxis[1] + 50];
-  var _fireballFrontPos = [_fireballXaxis[0] + 15, _fireballXaxis[1] + 15];
-  var _fireballBackPos = [_fireballXaxis[0] + 70, _fireballXaxis[1] + 70];
+  var _fireballTopPos = [
+    _fireballYaxis[0] + 25,
+    _fireballYaxis[1] + 25,
+    _fireballYaxis[2] + 25,
+    _fireballYaxis[3] + 25,
+  ];
+  var _fireballBottomPos = [
+    _fireballYaxis[0] + 50,
+    _fireballYaxis[1] + 50,
+    _fireballYaxis[2] + 50,
+    _fireballYaxis[3] + 50,
+  ];
+  var _fireballFrontPos = [
+    _fireballXaxis[0] + 15,
+    _fireballXaxis[1] + 15,
+    _fireballXaxis[2] + 15,
+    _fireballXaxis[3] + 15,
+  ];
+  var _fireballBackPos = [
+    _fireballXaxis[0] + 70,
+    _fireballXaxis[1] + 70,
+    _fireballXaxis[2] + 70,
+    _fireballXaxis[3] + 70,
+  ];
 
   double _scoreTopPos = _scoreYaxis;
   double _scoreBottomPos = _scoreYaxis + 20;
@@ -58,9 +83,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   double _scoreBackPos = _scoreXaxis + 20;
 
   double _score = 0;
-  double _gameTime = 0;
+  static int _gameDifficulty = 1;
 
-  bool _imageState = true;
+  int _highScore = 0;
+
+  final List<String> _images = [
+    'assets/images/background1.png',
+    'assets/images/background2.jpg',
+    'assets/images/background3.png',
+    'assets/images/background4.jpg',
+  ];
+  // Counter for which image is being displayed
+  int _imageStateCounter = 0;
+
+  // Counter cause I can't use my brain for another solution for changing background
+  int _counter = _gameDifficulty;
+
   bool _visible = true;
 
   @override
@@ -70,6 +108,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       DeviceOrientation.landscapeRight,
       DeviceOrientation.landscapeLeft,
     ]);
+    _checkHighScores();
+  }
+
+  void switchImage() {
+    setState(() {
+      _imageStateCounter =
+          (_imageStateCounter == _images.length - 1) ? 0 : ++_imageStateCounter;
+    });
   }
 
   void jumpUp() {
@@ -97,7 +143,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _gameHasStarted = true;
     _score = 0;
     Timer.periodic(Duration(milliseconds: 30), (timer) {
-      _gameTime += 0.03;
       _time += _TIMER_INCREASE;
       _score += 0.03;
       _height = (-(_GRAVITY / 2) * _time * _time + _VELOCITY * _time);
@@ -107,15 +152,32 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
       setState(() {
         changeFireballPos(0);
-        changeFireballPos(1);
+        if (_score > 50) {
+          changeFireballPos(1);
+          _gameDifficulty = 2;
+        }
+
+        if (_score > 100) {
+          changeFireballPos(2);
+          _gameDifficulty = 3;
+        }
+
+        if (_score > 200) {
+          changeFireballPos(3);
+          _gameDifficulty = 4;
+        }
+        if (_gameDifficulty != _counter) {
+          switchImage();
+          _counter = _gameDifficulty;
+        }
 
         changeScorePos();
 
-        if (double.parse(_score.toStringAsFixed(2)) % 10 == 0 && _score != 0) {
+        if (double.parse(_score.toStringAsFixed(2)) % 15 == 0 && _score != 0) {
           _fireBallSpeedFactor -= 2;
           _scoreSpeedFactor -= 2;
           _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
-          _imageState = !_imageState;
+          _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
         }
       });
       // Calculate Helicopter Position
@@ -124,9 +186,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       if (checkScoreCollision()) {
         _score++;
         _visible = false;
+        _scoreXaxis -= 40;
       }
 
-      if (checkObstacleCollision(0) || checkObstacleCollision(1)) {
+      if (checkObstacleCollision(0) ||
+          checkObstacleCollision(1) ||
+          checkObstacleCollision(2) ||
+          checkObstacleCollision(3)) {
         timer.cancel();
         _gameHasStarted = false;
       }
@@ -214,7 +280,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               child: GestureDetector(
                 child: Stack(
                   children: [
-                    ChangeBackground(imageState: _imageState),
+                    AnimatedSwitcher(
+                      child: BackgroundImage(
+                          key: ValueKey<int>(_imageStateCounter),
+                          url: _images[_imageStateCounter]),
+                      duration: Duration(milliseconds: 2000),
+                    ),
                     AnimatedPositioned(
                       top: _heliYaxis,
                       left: (SizeConfig.screenWidth) / 2.2,
@@ -229,6 +300,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       fireballYaxis: _fireballYaxis[1],
                       fireballXaxis: _fireballXaxis[1],
                     ),
+                    Fireball(
+                      fireballYaxis: _fireballYaxis[2],
+                      fireballXaxis: _fireballXaxis[2],
+                    ),
+                    Fireball(
+                      fireballYaxis: _fireballYaxis[3],
+                      fireballXaxis: _fireballXaxis[3],
+                    ),
                     AnimatedPositioned(
                       duration: Duration(milliseconds: 0),
                       top: _scoreYaxis,
@@ -240,7 +319,16 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                     Container(
                       alignment: Alignment(-0.9, -0.9),
-                      child: Text('SCORE: ${_score.toStringAsFixed(0)}',
+                      child: Text('SCORE: ${_score.toInt()}',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          )),
+                    ),
+                    AnimatedContainer(
+                      duration: Duration(milliseconds: 2000),
+                      alignment: Alignment(0.9, -0.9),
+                      child: Text('HIGH SCORE: $_highScore',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -277,14 +365,27 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _checkHighScores() async {
+    SharedPreferences _prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _highScore = _prefs.getInt('highScore') ?? 0;
+      if (_highScore < _score) {
+        _highScore = _score.toInt();
+        _prefs.setInt('highScore', _score.toInt());
+      }
+    });
+  }
+
   void endGame() {
+    _checkHighScores();
     _fireBallSpeedFactor = 80;
     _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
     _scoreSpeedFactor = 90;
     _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
 
-    _fireballXaxis[0] = SizeConfig.screenWidth + 100;
-    _fireballXaxis[1] = SizeConfig.screenWidth + 300;
+    for (int i = 0; i < _fireballXaxis.length; i++) {
+      _fireballXaxis[i] = SizeConfig.screenWidth + 200;
+    }
     _scoreXaxis = SizeConfig.screenWidth * 1.8;
     _heliYaxis = SizeConfig.screenHeight / 2.2;
 
@@ -294,6 +395,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _gameHasStarted = false;
     _throttlePressed = false;
 
-    _gameTime = 0;
+    _gameDifficulty = 0;
+    _counter = _gameDifficulty;
+    _imageStateCounter = 0;
   }
 }
