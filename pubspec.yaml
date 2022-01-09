@@ -33,7 +33,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  
 
+flutter_icons:
+  android: true
+  iso: true
+  image_path: "assets/images/icon.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -55,6 +60,7 @@ flutter:
     - assets/images/background3.png
     - assets/images/background4.jpg
     - assets/images/star.png
+    - assets/images/icon.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

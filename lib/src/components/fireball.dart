@@ -18,7 +18,7 @@ class Fireball extends StatelessWidget {
       duration: Duration(milliseconds: 0),
       top: _fireballYaxis,
       left: _fireballXaxis,
-      child: Image.asset("assets/images/fireball.png", scale: 4),
+      child: Image.asset("assets/images/fireball.png", scale: 5),
     );
   }
 }

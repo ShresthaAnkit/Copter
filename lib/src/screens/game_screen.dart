@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../components/my_copter.dart';
 import '../components/fireball.dart';
+import '../components/copter.dart';
+import '../components/score.dart';
 import '../components/background/background_image.dart';
 import '../size_config.dart';
 import 'dart:async';
@@ -16,8 +17,8 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   static double _heliYaxis = SizeConfig.screenHeight / 2.2;
   double _time = 0;
-  double _height = 0;
-  double _initialHeight;
+  double _height = _heliYaxis;
+  double _initialHeight = _heliYaxis;
   bool _gameHasStarted = false;
   bool _throttlePressed = false;
 
@@ -29,10 +30,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   static int _scoreSpeedFactor = 90;
 
   static var _fireballXaxis = [
-    SizeConfig.screenWidth * 1.2,
-    SizeConfig.screenWidth * 1.2,
-    SizeConfig.screenWidth * 1.2,
-    SizeConfig.screenWidth * 1.2,
+    SizeConfig.screenWidth * 2.2,
+    SizeConfig.screenWidth * 2.2,
+    SizeConfig.screenWidth * 2.2,
+    SizeConfig.screenWidth * 2.2,
   ];
   double _fireballSpeed = SizeConfig.screenWidth / _fireBallSpeedFactor;
   static var _fireballYaxis = [
@@ -42,7 +43,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     Random().nextDouble() * (SizeConfig.screenHeight * 0.8),
   ];
 
-  static double _scoreXaxis = SizeConfig.screenWidth * 1.8;
+  static double _scoreXaxis = SizeConfig.screenWidth * 2.4;
   double _scoreSpeed = SizeConfig.screenWidth / _scoreSpeedFactor;
   static double _scoreYaxis =
       Random().nextDouble() * (SizeConfig.screenHeight * 0.8);
@@ -59,10 +60,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _fireballYaxis[3] + 25,
   ];
   var _fireballBottomPos = [
-    _fireballYaxis[0] + 50,
-    _fireballYaxis[1] + 50,
-    _fireballYaxis[2] + 50,
-    _fireballYaxis[3] + 50,
+    _fireballYaxis[0] + 45,
+    _fireballYaxis[1] + 45,
+    _fireballYaxis[2] + 45,
+    _fireballYaxis[3] + 45,
   ];
   var _fireballFrontPos = [
     _fireballXaxis[0] + 15,
@@ -141,7 +142,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   void startGame() {
     _gameHasStarted = true;
-    _score = 0;
     Timer.periodic(Duration(milliseconds: 30), (timer) {
       _time += _TIMER_INCREASE;
       _score += 0.03;
@@ -286,12 +286,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                           url: _images[_imageStateCounter]),
                       duration: Duration(milliseconds: 2000),
                     ),
-                    AnimatedPositioned(
-                      top: _heliYaxis,
-                      left: (SizeConfig.screenWidth) / 2.2,
-                      duration: Duration(milliseconds: 0),
-                      child: MyCopter(),
-                    ),
+                    Copter(heliYaxis: _heliYaxis),
                     Fireball(
                       fireballYaxis: _fireballYaxis[0],
                       fireballXaxis: _fireballXaxis[0],
@@ -308,15 +303,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       fireballYaxis: _fireballYaxis[3],
                       fireballXaxis: _fireballXaxis[3],
                     ),
-                    AnimatedPositioned(
-                      duration: Duration(milliseconds: 0),
-                      top: _scoreYaxis,
-                      left: _scoreXaxis,
-                      child: Opacity(
-                          opacity: (_visible) ? 1 : 0,
-                          child:
-                              Image.asset("assets/images/star.png", scale: 7)),
-                    ),
+                    Score(
+                        scoreYaxis: _scoreYaxis,
+                        scoreXaxis: _scoreXaxis,
+                        visible: _visible),
                     Container(
                       alignment: Alignment(-0.9, -0.9),
                       child: Text('SCORE: ${_score.toInt()}',
@@ -395,6 +385,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     _gameHasStarted = false;
     _throttlePressed = false;
 
+    _score = 0;
     _gameDifficulty = 0;
     _counter = _gameDifficulty;
     _imageStateCounter = 0;
